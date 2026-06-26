@@ -19,6 +19,14 @@ import json
 import subprocess
 from pathlib import Path
 
+# Windows 控制台 UTF-8 编码（修复 emoji 显示）
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        os.environ["PYTHONIOENCODING"] = "utf-8"
+
 # 项目根目录
 ROOT_DIR = Path(__file__).parent
 
