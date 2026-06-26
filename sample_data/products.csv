@@ -1,0 +1,16 @@
+product_id,product_name,category,price,stock,supplier,rating,launch_date
+P001,MacBook Pro 14寸,笔记本电脑,14999,200,Apple,4.8,2024-01-15
+P002,ThinkPad X1 Carbon,笔记本电脑,9999,350,Lenovo,4.6,2024-02-20
+P003,iPhone 15 Pro,手机,8999,500,Apple,4.7,2023-09-22
+P004,华为 Mate 60,手机,6999,800,Huawei,4.5,2023-10-10
+P005,AirPods Pro 2,配件,1899,1200,Apple,4.6,2023-09-15
+P006,Dell U2723QE,显示器,3999,150,Dell,4.4,2024-01-08
+P007,HHKB Professional,键盘,2199,80,PFU,4.7,2023-11-20
+P008,Logitech MX Master 3S,鼠标,699,600,Logitech,4.5,2024-03-01
+P009,Samsung T7 Shield,存储,899,400,Samsung,4.3,2024-02-15
+P010,Sony WH-1000XM5,耳机,2499,300,Sony,4.8,2023-08-10
+P011,iPad Air M2,平板电脑,4799,250,Apple,4.6,2024-03-20
+P012,小米14 Ultra,手机,5999,700,Xiaomi,4.4,2024-02-25
+P013,ROG 幻16,笔记本电脑,12999,100,ASUS,4.5,2024-01-30
+P014,Dyson V15,智能家居,4999,180,Dyson,4.3,2023-12-01
+P015,Nintendo Switch OLED,游戏机,2599,450,Nintendo,4.7,2023-07-15
