@@ -1,0 +1,21 @@
+.DS_Store
+LightAgent/__pycache__/__init__.cpython-311.pyc
+LightAgent/__pycache__/la_core.cpython-311.pyc
+
+# 环境变量（含密钥）
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# 日志
+logs/*.log
