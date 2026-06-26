@@ -480,7 +480,7 @@ class LightAgent:
             f"##代理名称：{self.name}\n"
             f"##代理指令：{self.instructions}\n"
             f"##身份：{self.role}\n"
-            f"请一步一步思考来完成用户的要求。尽可能完成用户的回答，如果有补充信息，请参考补充信息来调用工具，直到获取所有满足用户的提问所需的答案。\n"
+            f"请一步一步思考来完成用户的要求。调用工具获取数据后，请立即整理数据并生成最终回复，不要重复调用相同的工具。每次工具调用后都应评估是否已获得足够信息来回答用户。\n"
             f"今日的日期: {current_date} 当前时间: {current_time}"
         )
         # 添加技能元数据到系统提示
@@ -842,7 +842,10 @@ class LightAgent:
         """
         非流式处理逻辑。
         """
-        for _ in range(max_retry):
+        # 追踪工具调用历史，用于检测循环
+        _tool_call_history = []
+
+        for retry_idx in range(max_retry):
             if response.choices[0].message.tool_calls:
                 # 初始化一个列表，用于存储所有工具调用的结果
                 tool_responses = []
@@ -996,7 +999,21 @@ class LightAgent:
             if function_call_name == 'finish':
                 self._record_trace("run_end", {"success": True, "finish_tool": True})
                 return  # 如果最后调用了finish工具，则结束生成器
-            # print("params:",self.chat_params)
+
+            # 检测重复工具调用模式，防止死循环
+            current_call_sig = tuple(
+                tc.get("name", "") if isinstance(tc, dict) else getattr(getattr(tc, "function", None), "name", "")
+                for tc in (response.choices[0].message.tool_calls or [])
+            )
+            _tool_call_history.append(current_call_sig)
+            # 如果连续 2 次调用相同的工具组合，注入提示强制生成回复
+            if len(_tool_call_history) >= 2 and _tool_call_history[-1] == _tool_call_history[-2]:
+                self.log("WARN", "repeated_tool_calls", {"pattern": current_call_sig})
+                self.chat_params["messages"].append({
+                    "role": "user",
+                    "content": "你已经多次调用相同工具，请不要再调用工具，直接根据已有数据用中文生成最终回复。"
+                })
+
             self.log("DEBUG", "non_stream chat-completions params", {"params": self.chat_params})
             self._record_trace("model_request", self._build_model_request_trace(self.chat_params))
 
@@ -1009,7 +1026,29 @@ class LightAgent:
                 self._record_trace("run_end", {"success": False, "error": error_msg})
                 return error_msg
 
-        # 重试次数用尽
+        # 重试次数用尽 — 尝试从消息历史中提取最后一次 assistant 内容
+        last_content = None
+        try:
+            # 优先从最后的 API 响应中提取
+            if response and response.choices:
+                last_content = response.choices[0].message.content
+            # 如果最后响应无内容，从消息历史中倒序查找
+            if not last_content:
+                for msg in reversed(self.chat_params.get("messages", [])):
+                    role = msg.get("role") if isinstance(msg, dict) else getattr(msg, "role", None)
+                    content = msg.get("content") if isinstance(msg, dict) else getattr(msg, "content", None)
+                    if role == "assistant" and content:
+                        last_content = content
+                        break
+        except Exception:
+            pass
+
+        if last_content:
+            self.log("WARN", "max_retry_reached_with_content", {"message": "Returning last response content after max retries."})
+            self._record_trace("error", {"stage": "max_retry", "error": "max_retry_reached, returning last content"})
+            self._record_trace("run_end", {"success": True, "fallback": True})
+            return last_content
+
         self.log("ERROR", "max_retry_reached", {"message": "Failed to generate a valid response."})
         self._record_trace("error", {"stage": "max_retry", "error": "Failed to generate a valid response."})
         self._record_trace("run_end", {"success": False, "error": "max_retry_reached"})
