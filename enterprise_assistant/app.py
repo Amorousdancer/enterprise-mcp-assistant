@@ -266,6 +266,9 @@ def chat(message: str, history: list[dict]) -> tuple:
             max_retry=5,
         )
 
+        if response is None:
+            response = "（助理已处理完毕，但未生成文本回复）"
+
         logger.info(f"Agent 回复: {response[:100]}...")
 
         # 更新工具调用日志
@@ -279,6 +282,13 @@ def chat(message: str, history: list[dict]) -> tuple:
         return error_msg, ""
 
 
+def _msg_get(msg, key, default=None):
+    """兼容 dict 和 Pydantic 对象的属性访问"""
+    if isinstance(msg, dict):
+        return msg.get(key, default)
+    return getattr(msg, key, default)
+
+
 def format_tool_calls() -> str:
     """格式化最近的工具调用记录"""
     agent = init_agent()
@@ -286,11 +296,19 @@ def format_tool_calls() -> str:
 
     tool_calls = []
     for msg in history:
-        if msg.get("role") == "assistant" and msg.get("tool_calls"):
-            for tc in msg["tool_calls"]:
-                func = tc.get("function", {})
-                name = func.get("name", "unknown")
-                args = func.get("arguments", "{}")
+        role = _msg_get(msg, "role")
+        tc_list = _msg_get(msg, "tool_calls")
+
+        if role == "assistant" and tc_list:
+            for tc in tc_list:
+                if isinstance(tc, dict):
+                    func = tc.get("function", {})
+                    name = func.get("name", "unknown")
+                    args = func.get("arguments", "{}")
+                else:
+                    func = getattr(tc, "function", None)
+                    name = getattr(func, "name", "unknown") if func else "unknown"
+                    args = getattr(func, "arguments", "{}") if func else "{}"
                 try:
                     args_dict = json.loads(args) if isinstance(args, str) else args
                     args_str = json.dumps(args_dict, ensure_ascii=False, indent=2)
@@ -298,8 +316,8 @@ def format_tool_calls() -> str:
                     args_str = str(args)
                 tool_calls.append(f"🔧 调用工具: `{name}`\n```json\n{args_str}\n```")
 
-        elif msg.get("role") == "tool":
-            content = msg.get("content", "")
+        elif role == "tool":
+            content = _msg_get(msg, "content", "")
             # 截断过长的工具返回
             if len(content) > 500:
                 content = content[:500] + "\n... [已截断]"
